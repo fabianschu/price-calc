@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Title</title>
+    <!--Chart.js JS CDN--> 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script> 
+    <script src="https://momentjs.com/downloads/moment.js"></script> 
+    <script src="bundle.js"></script>
+    <style>
+        .top-container {
+            width: 500px;
+            border: 1px solid black;
+        }
+        .input-output-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .button-container {
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .top-section {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-around;
+        }
+        .canvas-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .canvas-wrapper {
+            width: 700px;
+        }
+    </style>
+</head>
+<body>
+    <div class="top-section">
+        <form class="top-container">
+            <h3>LBP Configuration</h3>
+            <div class="input-output-container">
+                <label for="pTokenSupply">Total supply project tokens:</label>
+                <input type="number" id="pTokenSupply" value="1000000">
+            </div>
+            <div class="input-output-container">
+                <label for="pTokenLbpAmount">Amount of project tokens in pool:</label>
+                <input type="number" id="pTokenLbpAmount" value="100000">
+            </div>
+            <div class="input-output-container">
+                <label for="fTokenLbpAmount">Amount of funding tokens in pool:</label>
+                <input type="number" id="fTokenLbpAmount" value="5000">
+            </div>
+            <div class="input-output-container">
+                <label for="pricePerFToken">Price per funding token in USD:</label>
+                <input type="number" id="pricePerFToken" value="1">
+            </div>
+            <div class="input-output-container">
+                <label for="currentWeight">Current weight of project token:</label>
+                <input type="number" id="currentWeight" value="0.8">
+            </div>
+            <div class="input-output-container">
+                <label for="endWeight">End weight of project token:</label>
+                <input type="number" id="endWeight" value="0.1">
+            </div>
+            <div class="input-output-container">
+                <label for="currentDate">Current date:</label>
+                <input type="datetime-local" id="currentDate" value="2021-09-23T12:00">
+            </div>
+            <div class="input-output-container">
+                <label for="endDate">End date of LBP:</label>
+                <input type="datetime-local" id="endDate" value="2021-09-25T12:00">
+            </div>
+            <div class="button-container">
+                <button type="button" id="calcButton">Create graph</button>
+            </div>
+        </form>
+        <div class="top-container">
+            <h3>Launch Preview</h3>
+            <div class="input-output-container">
+                <div>Implied Market Cap:</div>
+                <div id="impliedMcap"></div>
+            </div>
+            <div class="input-output-container">
+                <div>Price Range:</div>
+                <div id="priceRange"></div>
+            </div>
+        </div>
+    </div>
+    <div class="canvas-container">
+        <div class="canvas-wrapper">
+            <canvas id="myChart"></canvas>
+        </div>
+    </div>
+        <script>
+            document.getElementById("calcButton").addEventListener("click", function() {
+                // inputs
+                const projectTokenTotalSupply = document.getElementById("pTokenSupply").value
+                const projectTokenLbpAmount = document.getElementById("pTokenLbpAmount").value
+                const fundingTokenLbpAmount = document.getElementById("fTokenLbpAmount").value
+                const pricePerFundingToken = document.getElementById("pricePerFToken").value
+                const currentWeightProjectToken = document.getElementById("currentWeight").value
+                const endWeightProjectToken = document.getElementById("endWeight").value
+                const currentDate = document.getElementById("currentDate").value
+                const endDate = document.getElementById("endDate").value
+                const lbpDurationInHours = moment
+                    .duration(moment(endDate).diff(moment(currentDate)))
+                    .asHours();
+
+                // outputs
+                const {LbpPriceService} = ServiceModule;
+                const lbpPriceService = new LbpPriceService(
+                    projectTokenTotalSupply,
+                    projectTokenLbpAmount,
+                    fundingTokenLbpAmount,
+                    currentWeightProjectToken,
+                    endWeightProjectToken,
+                    currentDate,
+                    endDate,
+                    pricePerFundingToken
+                ); 
+                const {labels, prices} = lbpPriceService.getInterpolatedPriceDatapoints(
+                    projectTokenLbpAmount,
+                    fundingTokenLbpAmount,
+                    currentDate
+                )
+
+                // displayed outputs
+                const currentMcap = lbpPriceService.getMarketCap(projectTokenLbpAmount, fundingTokenLbpAmount, currentWeightProjectToken)
+                const finalMcap = lbpPriceService.getMarketCap(projectTokenLbpAmount, fundingTokenLbpAmount, endWeightProjectToken)
+                const currentPrice = lbpPriceService.getPriceAtWeight(projectTokenLbpAmount, fundingTokenLbpAmount, currentWeightProjectToken)
+                const finalPrice = lbpPriceService.getPriceAtWeight(projectTokenLbpAmount, fundingTokenLbpAmount, endWeightProjectToken)
+                document.getElementById("impliedMcap").innerHTML = `${currentMcap} USD - ${finalMcap} USD`;
+                document.getElementById("priceRange").innerHTML = `${parseFloat(currentPrice).toFixed(2)} USD - ${parseFloat(finalPrice).toFixed(2)}  USD`;
+
+                // chart
+                var ctx = document.getElementById('myChart').getContext('2d');
+                var chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels.map(label => moment(label).format("DD/MM HH:00")),
+                        datasets: [{
+                        label: 'projected price when no more sales occur',
+                        data: prices,
+                        borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: {
+                                    unit: 'hour'
+                                }
+                            }
+                        }
+                    }
+                });
+            }); 
+        </script>
+  </body>
+</html>
+
