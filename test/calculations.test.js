@@ -210,4 +210,16 @@ describe("LbpPriceService", () => {
       });
     });
   });
+
+  describe("#getFundsRaised", () => {
+    const fundingTokenInPool = 15000;
+
+    it("returns the amount of funding", () => {
+      const fundingVolume = lbpPriceService.getFundsRaised(fundingTokenInPool);
+
+      expect(fundingVolume).toEqual(
+        fundingTokenInPool - fundingTokenInitialLbpAmount
+      );
+    });
+  });
 });

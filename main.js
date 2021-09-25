@@ -89,6 +89,13 @@ class LbpPriceService {
       .duration(roundedCurrentTime.diff(this.roundedStartDate))
       .asHours();
   }
+
+  getFundsRaised(fundingTokenInPool) {
+    return (
+      (fundingTokenInPool - this.fundingTokenInitialLbpAmount) *
+      this.pricePerFundingToken
+    );
+  }
 }
 
 module.exports = { LbpPriceService };
